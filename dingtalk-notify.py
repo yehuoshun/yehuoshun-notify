@@ -42,12 +42,21 @@ def push():
     lines = []
     seen = set()
     for c in commits[:5]:
-        msg = c.get("message", "").split("\n")[0][:80]
+        raw = c.get("message", "")
+        msgParts = raw.split("\n")
+        title = msgParts[0][:80]
         author = c.get("author", {}).get("name", "?")
-        key = f"{msg}|{author}"
+        key = f"{title}|{author}"
         if key in seen: continue
         seen.add(key)
-        lines.append(f"- {_emoji(msg)} {msg}  — **{author}**")
+
+        # Show body lines (up to 3) for context
+        body = [b.strip() for b in msgParts[1:6] if b.strip() and b.strip().startswith("-")]
+        if body:
+            subItems = "\n".join(f"  {b}" for b in body[:3])
+            lines.append(f"- {_emoji(title)} {title}  — **{author}**\n{subItems}")
+        else:
+            lines.append(f"- {_emoji(title)} {title}  — **{author}**")
 
     commit_text = "\n".join(lines)
     if total > 5:
