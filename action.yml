@@ -1,5 +1,5 @@
-name: DingTalk Notify
-description: 中英双语 GitHub 事件通知推送到钉钉机器人
+name: yehuoshun Notify
+description: 中英双语 GitHub 事件通知（钉钉/飞书/企微）
 author: yehuoshun
 
 inputs:

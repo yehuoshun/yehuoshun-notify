@@ -19,7 +19,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: yehuoshun/dingtalk-notify@main
+      - uses: yehuoshun/yehuoshun-notify@main
         with:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
 ```
@@ -42,7 +42,7 @@ jobs:
         with:
           tag_name: latest
           files: SKILL.md
-      - uses: yehuoshun/dingtalk-notify@main
+      - uses: yehuoshun/yehuoshun-notify@main
         with:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
           event: release
