@@ -50,10 +50,10 @@ def push():
         if key in seen: continue
         seen.add(key)
 
-        # Show body lines (up to 3) for context
-        body = [b.strip() for b in msgParts[1:6] if b.strip() and b.strip().startswith("-")]
+        # Show all body lines for full context
+        body = [b.strip() for b in msgParts[1:] if b.strip() and b.strip().startswith("-")]
         if body:
-            subItems = "\n".join(f"  {b}" for b in body[:3])
+            subItems = "\n".join(f"  {b}" for b in body)
             lines.append(f"- {_emoji(title)} {title}  — **{author}**\n{subItems}")
         else:
             lines.append(f"- {_emoji(title)} {title}  — **{author}**")
