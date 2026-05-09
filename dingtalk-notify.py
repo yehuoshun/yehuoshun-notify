@@ -27,7 +27,7 @@ def _emoji(msg):
 def _truncate(text, n=300):
     if not text: return ""
     text = text.strip()
-    return text if len(text) <= n else text[:n].rsplit("\n", 1)[0] + "\n> ⋯"
+    return text if len(text) <= n else text[:n].rsplit("\n", 1)[0] + "\n…"
 
 
 # ── builders ─────────────────────────────────────────────
@@ -47,11 +47,11 @@ def push():
         key = f"{msg}|{author}"
         if key in seen: continue
         seen.add(key)
-        lines.append(f"> {_emoji(msg)} {msg}  — *{author}*")
+        lines.append(f"- {_emoji(msg)} {msg}  — **{author}**")
 
     commit_text = "\n".join(lines)
     if total > 5:
-        commit_text += f"\n> ⋯ 共 **{total}** 条 / *{total} commits*"
+        commit_text += f"\n- ⋯ 共 **{total}** 条"
 
     title = f"Push · {REPO}"
     text = f"""## 🚀 代码推送 · Code Push  
@@ -65,7 +65,7 @@ def push():
 
 [📎 查看变更 / View diff]({compare})  
 
-> GitHub"""
+—— **GitHub**"""
     return title, text
 
 
@@ -102,7 +102,7 @@ def pull_request():
     if body:
         text += f"\n\n{body}"
 
-    text += f"\n\n[📎 查看详情 / View PR]({url})  \n\n> GitHub"
+    text += f"\n\n[📎 查看详情 / View PR]({url})  \n\n—— **GitHub**"
     return title, text
 
 
@@ -134,7 +134,7 @@ def issues():
     if body:
         text += f"\n\n{body}"
 
-    text += f"\n\n[📎 查看详情 / View Issue]({url})  \n\n> GitHub"
+    text += f"\n\n[📎 查看详情 / View Issue]({url})  \n\n—— **GitHub**"
     return title, text
 
 
@@ -156,7 +156,7 @@ def release():
 
 [📎 查看 Release / View Release]({url})  
 
-> GitHub"""
+—— **GitHub**"""
     return title, text
 
 
@@ -168,7 +168,7 @@ if handler:
     title, text = handler()
 else:
     title = f"{EVENT_NAME} · {REPO}"
-    text = f"## 📢 事件 / Event: `{EVENT_NAME}`\n\n_{REPO}_\n\n> GitHub"
+    text = f"## 📢 事件 / Event: `{EVENT_NAME}`\n\n_{REPO}_\n\n—— **GitHub**"
 
 payload = json.dumps({
     "msgtype": "markdown",
