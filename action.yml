@@ -6,6 +6,10 @@ inputs:
   webhook:
     description: 钉钉机器人 webhook 地址
     required: true
+  event:
+    description: 覆盖事件类型（用于 release 等场景），默认自动检测
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -14,6 +18,7 @@ runs:
       shell: bash
       env:
         DINGTALK_WEBHOOK: ${{ inputs.webhook }}
+        DINGTALK_EVENT: ${{ inputs.event }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}
         GITHUB_REPOSITORY: ${{ github.repository }}

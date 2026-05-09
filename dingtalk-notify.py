@@ -3,7 +3,8 @@
 import json, os, re, urllib.request
 
 WEBHOOK = os.environ["DINGTALK_WEBHOOK"]
-EVENT_NAME = os.environ["GITHUB_EVENT_NAME"]
+CUSTOM_EVENT = os.environ.get("DINGTALK_EVENT", "")
+EVENT_NAME = CUSTOM_EVENT or os.environ["GITHUB_EVENT_NAME"]
 EVENT_PATH = os.environ["GITHUB_EVENT_PATH"]
 REPO = os.environ.get("GITHUB_REPOSITORY", "?")
 
@@ -137,9 +138,31 @@ def issues():
     return title, text
 
 
+def release():
+    ref = os.environ["GITHUB_REF_NAME"]
+    actor = os.environ["GITHUB_ACTOR"]
+    url = f"https://github.com/{REPO}/releases/tag/latest"
+    commit_msg = ev.get("head_commit", {}).get("message", "")[:100]
+
+    title = f"Release · {REPO}"
+    text = f"""## 🏷️ Skill 发布 / Release  
+
+**SKILL.md** 已更新 / updated  
+
+**仓库** / *Repo*: {REPO}  
+**分支** / *Branch*: {ref}  
+**提交者** / *Author*: **{actor}**  
+**提交信息** / *Message*: {commit_msg}  
+
+[📎 查看 Release / View Release]({url})  
+
+> GitHub"""
+    return title, text
+
+
 # ── dispatch ─────────────────────────────────────────────
 
-handlers = {"push": push, "pull_request": pull_request, "issues": issues}
+handlers = {"push": push, "pull_request": pull_request, "issues": issues, "release": release}
 handler = handlers.get(EVENT_NAME)
 if handler:
     title, text = handler()
