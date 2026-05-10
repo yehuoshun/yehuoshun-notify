@@ -20,21 +20,36 @@ runs:
       with:
         fetch-depth: 0
 
-    - name: Auto Tag from Commit
+    - name: Auto Tag
       if: github.event_name == 'push'
       shell: bash
       run: |
-        VER=$(echo "${{ github.event.head_commit.message }}" | grep -oP '^v\d+(\.\d+)*(\s|$)' | head -1 | xargs)
-        if [ -n "$VER" ]; then
-          if ! git rev-parse "$VER" >/dev/null 2>&1; then
-            git config user.name "github-actions[bot]"
-            git config user.email "actions@github.com"
-            git tag -a "$VER" -m "Release $VER"
-            git push origin "$VER"
-            echo "✅ Auto Tagged $VER"
+        MSG="${{ github.event.head_commit.message }}"
+        # 1. commit message 显式声明版本号 → 直接用
+        VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)*(\s|$)' | head -1 | xargs)
+        if [ -z "$VER" ]; then
+          # 2. 没显式声明 → 找最新 tag，patch +1
+          LATEST=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
+          if [ -z "$LATEST" ]; then
+            # 3. 没有任何 tag → 默认从 v0.0.1 开始
+            VER="v0.0.1"
           else
-            echo "⏭️ Tag $VER already exists"
+            IFS='.' read -ra PARTS <<< "${LATEST#v}"
+            MAJOR=${PARTS[0]:-0}
+            MINOR=${PARTS[1]:-0}
+            PATCH=${PARTS[2]:-0}
+            PATCH=$((PATCH + 1))
+            VER="v${MAJOR}.${MINOR}.${PATCH}"
           fi
+        fi
+        if ! git rev-parse "$VER" >/dev/null 2>&1; then
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@github.com"
+          git tag -a "$VER" -m "Release $VER"
+          git push origin "$VER"
+          echo "✅ Auto Tagged $VER"
+        else
+          echo "⏭️ Tag $VER already exists"
         fi
 
     - name: Send DingTalk Notification
