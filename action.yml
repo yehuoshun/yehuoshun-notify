@@ -1,5 +1,5 @@
 name: yehuoshun Notify
-description: 中英双语 GitHub 事件通知 + 自动版本打标
+description: 中英双语 GitHub 事件通知 + 自动版本打标 + Release 管理
 author: yehuoshun
 
 inputs:
@@ -14,25 +14,33 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Checkout
+    - name: Checkout (push only)
       if: github.event_name == 'push'
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
         fetch-tags: true
 
-    - name: Auto Tag
+    - name: Auto Tag + Release
+      id: tag
       if: github.event_name == 'push'
       shell: bash
       run: |
         MSG="${{ github.event.head_commit.message }}"
-        # 1. commit message 显式声明版本号 → 直接用
-        VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)*(\s|$)' | head -1 | xargs || true)
+
+        # 检查 SKILL.md 是否变更
+        SKILL_CHANGED="false"
+        if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q '^SKILL.md$'; then
+          SKILL_CHANGED="true"
+        fi
+        echo "skill_changed=$SKILL_CHANGED" >> $GITHUB_OUTPUT
+
+        # 提取版本号：commit message 以 vX.Y 开头 → 直接用
+        VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)+' | head -1 || true)
         if [ -z "$VER" ]; then
-          # 2. 没显式声明 → 找最新 tag，patch +1
+          # 没显式声明 → 找最新 tag，patch +1
           LATEST=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
           if [ -z "$LATEST" ]; then
-            # 3. 没有任何 tag → 默认从 v0.0.1 开始
             VER="v0.0.1"
           else
             IFS='.' read -ra PARTS <<< "${LATEST#v}"
@@ -43,21 +51,51 @@ runs:
             VER="v${MAJOR}.${MINOR}.${PATCH}"
           fi
         fi
+        echo "version=$VER" >> $GITHUB_OUTPUT
+
+        # 创建 tag
         if ! git rev-parse "$VER" >/dev/null 2>&1; then
           git config user.name "github-actions[bot]"
           git config user.email "actions@github.com"
           git tag -a "$VER" -m "Release $VER"
           git push origin "$VER"
-          echo "✅ Auto Tagged $VER"
+          echo "✅ Tagged $VER"
         else
           echo "⏭️ Tag $VER already exists"
         fi
+
+    - name: Create Latest Release
+      if: steps.tag.outputs.skill_changed == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        name: Latest
+        tag_name: latest
+        body: |
+          ## 📦 语雀知识库迁移 Skill
+
+          [查看文档](https://github.com/${{ github.repository }}#readme)
+        files: SKILL.md
+        make_latest: true
+
+    - name: Create Versioned Release
+      if: steps.tag.outputs.skill_changed == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        name: ${{ steps.tag.outputs.version }}
+        tag_name: ${{ steps.tag.outputs.version }}
+        body: |
+          ## 📦 语雀知识库迁移 Skill ${{ steps.tag.outputs.version }}
+
+          [查看文档](https://github.com/${{ github.repository }}#readme)
+        files: SKILL.md
 
     - name: Send DingTalk Notification
       shell: bash
       env:
         DINGTALK_WEBHOOK: ${{ inputs.webhook }}
         DINGTALK_EVENT: ${{ inputs.event }}
+        DINGTALK_VERSION: ${{ steps.tag.outputs.version }}
+        DINGTALK_SKILL_CHANGED: ${{ steps.tag.outputs.skill_changed }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}
         GITHUB_REPOSITORY: ${{ github.repository }}

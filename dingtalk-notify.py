@@ -150,15 +150,24 @@ def issues():
 def release():
     ref = os.environ["GITHUB_REF_NAME"]
     actor = os.environ["GITHUB_ACTOR"]
-    url = f"https://github.com/{REPO}/releases/tag/latest"
+    version = os.environ.get("DINGTALK_VERSION", "")
     commit_msg = ev.get("head_commit", {}).get("message", "")[:100]
 
-    title = f"Release · {REPO}"
+    if version:
+        url = f"https://github.com/{REPO}/releases/tag/{version}"
+        title = f"Release {version} · {REPO}"
+        version_line = f"**版本** / *Version*: `{version}`"
+    else:
+        url = f"https://github.com/{REPO}/releases/tag/latest"
+        title = f"Release · {REPO}"
+        version_line = "**版本** / *Version*: Latest"
+
     text = f"""## 🏷️ Skill 发布 / Release  
 
 **SKILL.md** 已更新 / updated  
 
 **仓库** / *Repo*: {REPO}  
+{version_line}  
 **分支** / *Branch*: {ref}  
 **提交者** / *Author*: **{actor}**  
 **提交信息** / *Message*: {commit_msg}  
