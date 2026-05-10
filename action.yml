@@ -24,7 +24,7 @@ runs:
       if: github.event_name == 'push'
       shell: bash
       run: |
-        VER=$(echo "${{ github.event.head_commit.message }}" | grep -oP '^v\d+(\.\d+)*' | head -1)
+        VER=$(echo "${{ github.event.head_commit.message }}" | grep -oP '^v\d+(\.\d+)*(\s|$)' | head -1 | xargs)
         if [ -n "$VER" ]; then
           if ! git rev-parse "$VER" >/dev/null 2>&1; then
             git config user.name "github-actions[bot]"
