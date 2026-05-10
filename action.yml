@@ -1,5 +1,5 @@
 name: yehuoshun Notify
-description: 中英双语 GitHub 事件通知（钉钉/飞书/企微）
+description: 中英双语 GitHub 事件通知 + 自动版本打标
 author: yehuoshun
 
 inputs:
@@ -14,6 +14,29 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Checkout
+      if: github.event_name == 'push'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Auto Tag from Commit
+      if: github.event_name == 'push'
+      shell: bash
+      run: |
+        VER=$(echo "${{ github.event.head_commit.message }}" | grep -oP '^v\d+(\.\d+)*' | head -1)
+        if [ -n "$VER" ]; then
+          if ! git rev-parse "$VER" >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "actions@github.com"
+            git tag -a "$VER" -m "Release $VER"
+            git push origin "$VER"
+            echo "✅ Auto Tagged $VER"
+          else
+            echo "⏭️ Tag $VER already exists"
+          fi
+        fi
+
     - name: Send DingTalk Notification
       shell: bash
       env:
