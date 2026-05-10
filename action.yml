@@ -28,14 +28,18 @@ runs:
       run: |
         MSG="${{ github.event.head_commit.message }}"
 
-        # 检查 SKILL.md 是否变更（只有变更时才 tag + release）
-        SKILL_CHANGED="false"
-        if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q '^SKILL.md$'; then
-          SKILL_CHANGED="true"
-        fi
-        echo "skill_changed=$SKILL_CHANGED" >> $GITHUB_OUTPUT
+        # 除了 README.md 以外的文件有变更 → 需要 tag + release
+        CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+        NON_README=$(echo "$CHANGED_FILES" | grep -v '^README.md$' | grep -v '^$' || true)
 
-        if [ "$SKILL_CHANGED" = "true" ]; then
+        if [ -n "$NON_README" ]; then
+          SHOULD_RELEASE="true"
+        else
+          SHOULD_RELEASE="false"
+        fi
+        echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+
+        if [ "$SHOULD_RELEASE" = "true" ]; then
           # 提取版本号：commit message 以 vX.Y 开头 → 直接用
           VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)+' | head -1 || true)
           if [ -z "$VER" ]; then
@@ -66,11 +70,11 @@ runs:
           fi
         else
           echo "version=" >> $GITHUB_OUTPUT
-          echo "⏭️ SKILL.md unchanged, skip tag"
+          echo "⏭️ Only README changed, skip tag"
         fi
 
     - name: Create Latest Release
-      if: steps.tag.outputs.skill_changed == 'true'
+      if: steps.tag.outputs.should_release == 'true'
       uses: softprops/action-gh-release@v2
       with:
         name: Latest
@@ -83,7 +87,7 @@ runs:
         make_latest: true
 
     - name: Create Versioned Release
-      if: steps.tag.outputs.skill_changed == 'true'
+      if: steps.tag.outputs.should_release == 'true'
       uses: softprops/action-gh-release@v2
       with:
         name: ${{ steps.tag.outputs.version }}
@@ -100,7 +104,7 @@ runs:
         DINGTALK_WEBHOOK: ${{ inputs.webhook }}
         DINGTALK_EVENT: ${{ inputs.event }}
         DINGTALK_VERSION: ${{ steps.tag.outputs.version }}
-        DINGTALK_SKILL_CHANGED: ${{ steps.tag.outputs.skill_changed }}
+        DINGTALK_SHOULD_RELEASE: ${{ steps.tag.outputs.should_release }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}
         GITHUB_REPOSITORY: ${{ github.repository }}
