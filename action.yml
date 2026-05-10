@@ -27,7 +27,7 @@ runs:
       run: |
         MSG="${{ github.event.head_commit.message }}"
         # 1. commit message 显式声明版本号 → 直接用
-        VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)*(\s|$)' | head -1 | xargs)
+        VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)*(\s|$)' | head -1 | xargs || true)
         if [ -z "$VER" ]; then
           # 2. 没显式声明 → 找最新 tag，patch +1
           LATEST=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
