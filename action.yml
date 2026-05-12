@@ -39,6 +39,12 @@ runs:
         fi
         echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
 
+        # 生成 changelog（最近 5 条非 merge 提交）
+        LOG=$(git log -5 --pretty=format:"- %s (%an, %ar)" --no-merges)
+        echo "changelog<<CHANGELOG_EOF" >> $GITHUB_OUTPUT
+        echo "$LOG" >> $GITHUB_OUTPUT
+        echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
+
         if [ "$SHOULD_RELEASE" = "true" ]; then
           # 提取版本号：commit message 以 vX.Y 开头 → 直接用
           VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)+' | head -1 || true)
@@ -80,9 +86,11 @@ runs:
         name: Latest
         tag_name: latest
         body: |
-          ## 📦 语雀知识库迁移 Skill
+          ## 📝 最近变更
 
-          [查看文档](https://github.com/${{ github.repository }}#readme)
+          ${{ steps.tag.outputs.changelog }}
+
+          📖 [查看文档](https://github.com/${{ github.repository }}#readme)
         files: SKILL.md
         make_latest: true
 
@@ -93,9 +101,11 @@ runs:
         name: ${{ steps.tag.outputs.version }}
         tag_name: ${{ steps.tag.outputs.version }}
         body: |
-          ## 📦 语雀知识库迁移 Skill ${{ steps.tag.outputs.version }}
+          ## 📝 ${{ steps.tag.outputs.version }} 变更
 
-          [查看文档](https://github.com/${{ github.repository }}#readme)
+          ${{ steps.tag.outputs.changelog }}
+
+          📖 [查看文档](https://github.com/${{ github.repository }}#readme)
         files: SKILL.md
 
     - name: Send DingTalk Notification
