@@ -148,33 +148,51 @@ def issues():
 
 
 def release():
-    ref = os.environ["GITHUB_REF_NAME"]
-    actor = os.environ["GITHUB_ACTOR"]
-    version = os.environ.get("DINGTALK_VERSION", "")
-    commit_msg = ev.get("head_commit", {}).get("message", "")[:100]
+    """GitHub Release 事件通用模板。
+    展示 release body（含完整 changelog）+ 元信息。
+    """
+    rel = ev.get("release", {})
+    action = ev.get("action", "published")
+    tag = rel.get("tag_name", "?")
+    name = rel.get("name") or tag
+    body = rel.get("body", "")
+    url = rel.get("html_url", "")
+    author = rel.get("author", {}).get("login", "?")
+    prerelease = rel.get("prerelease", False)
+    draft = rel.get("draft", False)
 
-    if version:
-        url = f"https://github.com/{REPO}/releases/tag/{version}"
-        title = f"Release {version} · {REPO}"
-        version_line = f"**版本** / *Version*: `{version}`"
-    else:
-        url = f"https://github.com/{REPO}/releases/tag/latest"
-        title = f"Release · {REPO}"
-        version_line = "**版本** / *Version*: Latest"
+    badge = "🏷️"
+    if prerelease: badge = "🧪"
+    if draft: badge = "📝"
 
-    text = f"""## 🏷️ Skill 发布 / Release  
+    action_label = {
+        "published": "发布 / Published",
+        "created": "创建 / Created",
+        "edited": "编辑 / Edited",
+        "deleted": "删除 / Deleted",
+        "prereleased": "预发布 / Prereleased",
+        "released": "正式发布 / Released",
+    }.get(action, action)
 
-**SKILL.md** 已更新 / updated  
+    title = f"{badge} Release {tag} · {REPO}"
 
-**仓库** / *Repo*: {REPO}  
-{version_line}  
-**分支** / *Branch*: {ref}  
-**提交者** / *Author*: **{actor}**  
-**提交信息** / *Message*: {commit_msg}  
+    text = f"""## {badge} {action_label}
 
-[📎 查看 Release / View Release]({url})  
+**{name}**
 
-—— **GitHub**"""
+- **仓库** / *Repo*: {REPO}
+- **版本** / *Version*: `{tag}`
+- **发布者** / *Author*: **{author}**
+"""
+
+    if body:
+        # release body 通常包含完整 changelog，直接展示
+        text += f"\n{body}\n"
+
+    if url:
+        text += f"\n[📎 查看 Release / View Release]({url})"
+
+    text += "\n\n—— **GitHub**"
     return title, text
 
 
