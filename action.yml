@@ -2,6 +2,10 @@ name: yehuoshun Notify
 description: 中英双语 GitHub 事件通知 + 自动版本打标 + Release 管理
 author: yehuoshun
 
+branding:
+  icon: 'bell'
+  color: 'blue'
+
 inputs:
   webhook:
     description: 钉钉机器人 webhook 地址
@@ -18,6 +22,14 @@ inputs:
     description: 'git log --pretty=format 模板，用于生成 Release body 中的 changelog'
     required: false
     default: '- **%h** %s (%an, %ad)%n%b'
+
+outputs:
+  version:
+    description: 生成的版本号（仅 push 时有效）
+    value: ${{ steps.tag.outputs.version }}
+  should_release:
+    description: 是否触发了 release（仅 push 时有效）
+    value: ${{ steps.tag.outputs.should_release }}
 
 runs:
   using: composite

@@ -37,11 +37,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: yehuoshun/yehuoshun-notify@main
+        id: notify
         with:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
+      - name: 下游使用版本号
+        run: echo "新版本: ${{ steps.notify.outputs.version }}"
 ```
 
 Push 时自动打 tag、生成 Release、发送钉钉通知。仅 README 变更时跳过 Release。
+
+### Workflow Run 通知（CI/CD 结果）
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["CI", "Build"]
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: yehuoshun/yehuoshun-notify@main
+        with:
+          webhook: ${{ secrets.DINGTALK_WEBHOOK }}
+```
 
 ### 外部 Release 通知
 
@@ -76,6 +96,13 @@ jobs:
 | `create_release` | ❌ | `'true'` | 是否自动创建 GitHub Release |
 | `changelog_format` | ❌ | `- **%h** %s (%an, %ad)%n%b` | git log 格式化模板，用于 Release body 中的 changelog |
 
+## 输出 / Outputs
+
+| 输出 / Output | 说明 / Description |
+|---|---|
+| `version` | 生成的版本号（仅 push 且触发 release 时有效） |
+| `should_release` | 是否触发了 release（仅 push 时有效，`'true'` / `'false'`） |
+
 ### changelog_format 自定义示例
 
 ```yaml
@@ -98,9 +125,10 @@ jobs:
 ## 消息格式 / Message Format
 
 - **Push**: 仓库/分支/提交者/提交数 + commit 列表（自动匹配 emoji）
-- **PR**: 状态图标/标题/作者/分支/labels/内容预览
+- **PR**: 状态图标/标题/作者/分支/labels/内容预览（含 review_requested / ready_for_review）
 - **Issue**: 状态图标/标题/作者/labels/内容预览
 - **Release**: 版本号/发布者 + 完整 changelog
+- **Workflow Run**: 工作流名/状态/分支/触发者（✅成功 ❌失败 ⏹️取消 ⏭️跳过）
 - 所有消息中英双语，中文在前
 - 自动附加 `> GitHub` 关键词
 

@@ -1,15 +1,28 @@
 #!/usr/bin/env python3
 """DingTalk notification for GitHub repo events — 中英双语 Markdown 模板."""
-import json, os, re, time, urllib.request, urllib.error
+import json, os, re, sys, time, urllib.request, urllib.error
 
-WEBHOOK = os.environ["DINGTALK_WEBHOOK"]
+# ── preflight checks ─────────────────────────────────────
+
+WEBHOOK = os.environ.get("DINGTALK_WEBHOOK", "")
+if not WEBHOOK:
+    print("[DingTalk] ❌ 未配置 DINGTALK_WEBHOOK，请在仓库 Settings > Secrets 中添加", file=sys.stderr)
+    sys.exit(1)
+
 CUSTOM_EVENT = os.environ.get("DINGTALK_EVENT", "")
 EVENT_NAME = CUSTOM_EVENT or os.environ["GITHUB_EVENT_NAME"]
 EVENT_PATH = os.environ["GITHUB_EVENT_PATH"]
 REPO = os.environ.get("GITHUB_REPOSITORY", "?")
 
-with open(EVENT_PATH) as f:
-    ev = json.load(f)
+try:
+    with open(EVENT_PATH) as f:
+        ev = json.load(f)
+except FileNotFoundError:
+    print(f"[DingTalk] ❌ 事件文件不存在: {EVENT_PATH}", file=sys.stderr)
+    sys.exit(1)
+except json.JSONDecodeError as e:
+    print(f"[DingTalk] ❌ 事件 JSON 解析失败: {e}", file=sys.stderr)
+    sys.exit(1)
 
 # ── helpers ──────────────────────────────────────────────
 
@@ -87,6 +100,8 @@ def pull_request():
         "opened":   "🟢 新建 / Opened",
         "closed":   "🔴 关闭 / Closed",
         "reopened": "🔄 重新打开 / Reopened",
+        "review_requested": "👀 请求审查 / Review Requested",
+        "ready_for_review": "📋 准备审查 / Ready for Review",
     }.get(action, f"📌 {action}")
     if action == "closed" and pr.get("merged"):
         action_label = "🟣 已合并 / Merged"
@@ -196,9 +211,48 @@ def release():
     return title, text
 
 
+def workflow_run():
+    """workflow_run 事件 — CI/CD 完成通知。"""
+    wf = ev.get("workflow_run", {})
+    name = wf.get("name", "?")
+    conclusion = wf.get("conclusion", "?")
+    url = wf.get("html_url", "")
+    branch = wf.get("head_branch", "?")
+    actor = (wf.get("actor") or {}).get("login", "?")
+
+    icon = {"success": "✅", "failure": "❌", "cancelled": "⏹️", "skipped": "⏭️"}.get(conclusion, "📌")
+    label = {
+        "success": "成功 / Success",
+        "failure": "失败 / Failed",
+        "cancelled": "已取消 / Cancelled",
+        "skipped": "已跳过 / Skipped",
+    }.get(conclusion, conclusion)
+
+    title = f"Workflow {conclusion} · {REPO}"
+    text = f"""## {icon} 工作流 {label}
+
+**{name}**
+
+- **仓库** / *Repo*: {REPO}
+- **状态** / *Status*: `{conclusion}`
+- **分支** / *Branch*: {branch}
+- **触发者** / *Triggered by*: **{actor}**
+
+[📎 查看详情 / View Run]({url})
+
+—— **GitHub**"""
+    return title, text
+
+
 # ── dispatch ─────────────────────────────────────────────
 
-handlers = {"push": push, "pull_request": pull_request, "issues": issues, "release": release}
+handlers = {
+    "push": push,
+    "pull_request": pull_request,
+    "issues": issues,
+    "release": release,
+    "workflow_run": workflow_run,
+}
 handler = handlers.get(EVENT_NAME)
 if handler:
     title, text = handler()
