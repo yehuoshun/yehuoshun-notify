@@ -38,9 +38,23 @@ COMMIT_EMOJI = {
     "wip": "🚧",
 }
 
+COMMIT_ALIASES = {
+    "fixes": "fix", "fixed": "fix", "bugfix": "fix", "bug": "fix",
+    "feature": "feat", "features": "feat",
+    "documentation": "docs", "doc": "docs",
+    "refactoring": "refactor", "refactored": "refactor",
+    "testing": "test", "tests": "test",
+    "performance": "perf",
+    "builds": "build",
+    "reverts": "revert",
+    "merging": "merge",
+    "work in progress": "wip",
+}
+
 def _emoji(msg):
     m = re.match(r"(\w+)[(:]", msg)
-    return COMMIT_EMOJI.get((m.group(1) if m else "").lower(), "•")
+    key = (m.group(1) if m else "").lower()
+    return COMMIT_EMOJI.get(key) or COMMIT_EMOJI.get(COMMIT_ALIASES.get(key, ""), "•")
 
 def _truncate(text, n=300):
     if not text: return ""
