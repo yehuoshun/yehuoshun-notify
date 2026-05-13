@@ -49,7 +49,6 @@ COMMIT_ALIASES = {
     "builds": "build",
     "reverts": "revert",
     "merging": "merge",
-    "work in progress": "wip",
 }
 
 def _emoji(msg):
@@ -372,9 +371,11 @@ for attempt in range(MAX_RETRIES):
                 break
             elif errcode == 90030:
                 print(f"[DingTalk] ⚠️ 钉钉频率超限 / rate limited, 1 分钟后重试")
-                time.sleep(60)
                 if attempt < MAX_RETRIES - 1:
+                    time.sleep(60)
                     continue
+                else:
+                    print("[DingTalk] ❌ 通知发送失败，已重试3次 / Notification failed after 3 retries")
             else:
                 errmsg = body.get("errmsg", "unknown")
                 print(f"[DingTalk] ⚠️ errcode={errcode}: {errmsg}")
@@ -383,6 +384,8 @@ for attempt in range(MAX_RETRIES):
                     print(f"[DingTalk] ⏳ {wait}s 后重试 / retrying in {wait}s")
                     time.sleep(wait)
                     continue
+                else:
+                    print("[DingTalk] ❌ 通知发送失败，已重试3次 / Notification failed after 3 retries")
         except json.JSONDecodeError:
             print(f"[DingTalk] ✅ {resp.status} (非 JSON 响应)")
             break
