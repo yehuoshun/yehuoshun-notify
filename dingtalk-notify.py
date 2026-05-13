@@ -18,6 +18,7 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "?")
 MENTION_USERS = os.environ.get("DINGTALK_MENTION_USERS", "")
 MENTION_MOBILES = os.environ.get("DINGTALK_MENTION_MOBILES", "")
 MENTION_ALL = os.environ.get("DINGTALK_MENTION_ALL", "false") == "true"
+MAX_COMMITS = int(os.environ.get("DINGTALK_MAX_COMMITS", "0") or "0")
 
 try:
     with open(EVENT_PATH) as f:
@@ -73,7 +74,7 @@ def push():
 
     lines = []
     seen = set()
-    for c in commits[:5]:
+    for c in commits[:MAX_COMMITS] if MAX_COMMITS > 0 else commits:
         raw = c.get("message", "")
         msgParts = raw.split("\n")
         title = msgParts[0][:80]
@@ -91,8 +92,9 @@ def push():
             lines.append(f"- {_emoji(title)} {title}  — **{author}**")
 
     commit_text = "\n".join(lines)
-    if total > 5:
-        commit_text += f"\n- ⋯ 共 **{total}** 条"
+    if total > (MAX_COMMITS if MAX_COMMITS > 0 else total):
+        shown = MAX_COMMITS if MAX_COMMITS > 0 else total
+        commit_text += f"\n- ⋯ 共 **{total}** 条 / **{total}** total"
 
     title = f"Push · {REPO}"
     text = f"""## 🚀 代码推送 · Code Push  
@@ -360,8 +362,30 @@ for attempt in range(MAX_RETRIES):
     try:
         req = urllib.request.Request(WEBHOOK, data=payload, headers={"Content-Type": "application/json"})
         resp = urllib.request.urlopen(req, timeout=10)
-        print(f"[DingTalk] ✅ {resp.status} {resp.read().decode()}")
-        break
+        resp_body = resp.read().decode()
+        # 钉钉返回 200 但 errcode 非 0 → 业务错误（限流等）
+        try:
+            body = json.loads(resp_body)
+            errcode = body.get("errcode", 0)
+            if errcode == 0:
+                print(f"[DingTalk] ✅ 发送成功 / Sent")
+                break
+            elif errcode == 90030:
+                print(f"[DingTalk] ⚠️ 钉钉频率超限 / rate limited, 1 分钟后重试")
+                time.sleep(60)
+                if attempt < MAX_RETRIES - 1:
+                    continue
+            else:
+                errmsg = body.get("errmsg", "unknown")
+                print(f"[DingTalk] ⚠️ errcode={errcode}: {errmsg}")
+                if attempt < MAX_RETRIES - 1:
+                    wait = 2 ** attempt
+                    print(f"[DingTalk] ⏳ {wait}s 后重试 / retrying in {wait}s")
+                    time.sleep(wait)
+                    continue
+        except json.JSONDecodeError:
+            print(f"[DingTalk] ✅ {resp.status} (非 JSON 响应)")
+            break
     except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
         print(f"[DingTalk] ⚠️ 尝试 {attempt+1}/{MAX_RETRIES} 失败 / Attempt {attempt+1}/{MAX_RETRIES} failed: {e}")
         if attempt < MAX_RETRIES - 1:

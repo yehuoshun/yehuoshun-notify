@@ -22,6 +22,10 @@ inputs:
     description: 'git log --pretty=format 模板，用于生成 Release body 中的 changelog'
     required: false
     default: '- **%h** %s (%an, %ad)%n%b'
+  max_commits:
+    description: push 通知最多展示的 commit 条数（0=全部，默认显示全部）
+    required: false
+    default: '0'
   mention_users:
     description: 要 @ 的钉钉 userId（逗号分隔），需在钉钉管理后台查询
     required: false
@@ -85,9 +89,15 @@ runs:
         echo "$LOG" >> $GITHUB_OUTPUT
         echo "${CH_DELIM}" >> $GITHUB_OUTPUT
 
+        # 文件变更列表（用于 Release body）
+        FILE_LIST=$(git diff --name-status HEAD~1 HEAD 2>/dev/null | head -20)
+        echo "files_changed<<${CH_DELIM}" >> $GITHUB_OUTPUT
+        echo "$FILE_LIST" >> $GITHUB_OUTPUT
+        echo "${CH_DELIM}" >> $GITHUB_OUTPUT
+
         if [ "$SHOULD_RELEASE" = "true" ]; then
-          # 提取版本号：commit message 以 vX.Y 开头 → 直接用
-          VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)+' | head -1 || true)
+          # 提取版本号：commit message 以 vX.Y 开头 → 直接用（支持 semver 预发布）
+          VER=$(echo "$MSG" | grep -oP '^v\d+(\.\d+)+(-[a-zA-Z0-9.]+)?' | head -1 || true)
           if [ -z "$VER" ]; then
             # 没显式声明 → 找最新 tag，patch +1
             LATEST=$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)
@@ -130,6 +140,10 @@ runs:
 
           ${{ steps.tag.outputs.changelog }}
 
+          ## 📁 变更文件 / Files Changed
+
+          ${{ steps.tag.outputs.files_changed }}
+
           📖 [查看文档 / View Docs](https://github.com/${{ github.repository }}#readme)
         files: SKILL.md
         make_latest: true
@@ -145,6 +159,10 @@ runs:
 
           ${{ steps.tag.outputs.changelog }}
 
+          ## 📁 变更文件 / Files Changed
+
+          ${{ steps.tag.outputs.files_changed }}
+
           📖 [查看文档 / View Docs](https://github.com/${{ github.repository }}#readme)
         files: SKILL.md
 
@@ -155,6 +173,7 @@ runs:
         DINGTALK_EVENT: ${{ inputs.event }}
         DINGTALK_VERSION: ${{ steps.tag.outputs.version }}
         DINGTALK_SHOULD_RELEASE: ${{ steps.tag.outputs.should_release }}
+        DINGTALK_MAX_COMMITS: ${{ inputs.max_commits }}
         DINGTALK_MENTION_USERS: ${{ inputs.mention_users }}
         DINGTALK_MENTION_MOBILES: ${{ inputs.mention_mobiles }}
         DINGTALK_MENTION_ALL: ${{ inputs.mention_all }}

@@ -111,6 +111,7 @@ jobs:
 | `event` | ❌ | `''` | 手动覆盖事件类型（如 `release`），默认自动检测 |
 | `create_release` | ❌ | `'true'` | 是否自动创建 GitHub Release |
 | `changelog_format` | ❌ | `- **%h** %s (%an, %ad)%n%b` | git log 格式化模板，用于 Release body 中的 changelog |
+| `max_commits` | ❌ | `'0'` | push 通知最多展示的 commit 条数（0=全部） |
 | `mention_users` | ❌ | `''` | 要 @ 的钉钉 userId（逗号分隔），需在钉钉管理后台查看 |
 | `mention_mobiles` | ❌ | `''` | 要 @ 的手机号（逗号分隔），仅群内成员有效 |
 | `mention_all` | ❌ | `'false'` | 是否 @ 所有人（`'true'` / `'false'`） |
@@ -143,9 +144,10 @@ jobs:
 
 ## 消息格式 / Message Format
 
-- **Push**: 仓库/分支/提交者/提交数 + commit 列表（自动匹配 emoji）
+- **Push**: 仓库/分支/提交者/提交数 + 全部 commit 列表（默认全部显示，自动匹配 emoji + 别名）
 - **PR**: 状态图标/标题/作者/分支/labels/内容预览（含 review_requested / ready_for_review / synchronize）
 - **PR Review**: 审查结果通知（✅批准 / 🔄请求修改 / 💬评论 / ↩️驳回）
+- **Release**: 版本号/发布者 + 完整 changelog + 文件变更列表
 - **Issue**: 状态图标/标题/作者/labels/内容预览
 - **Release**: 版本号/发布者 + 完整 changelog
 - **Workflow Run**: 工作流名/状态/分支/触发者（✅成功 ❌失败 ⏹️取消 ⏭️跳过）
