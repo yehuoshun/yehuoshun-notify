@@ -14,6 +14,11 @@ EVENT_NAME = CUSTOM_EVENT or os.environ["GITHUB_EVENT_NAME"]
 EVENT_PATH = os.environ["GITHUB_EVENT_PATH"]
 REPO = os.environ.get("GITHUB_REPOSITORY", "?")
 
+# @ 提醒
+MENTION_USERS = os.environ.get("DINGTALK_MENTION_USERS", "")
+MENTION_MOBILES = os.environ.get("DINGTALK_MENTION_MOBILES", "")
+MENTION_ALL = os.environ.get("DINGTALK_MENTION_ALL", "false") == "true"
+
 try:
     with open(EVENT_PATH) as f:
         ev = json.load(f)
@@ -302,10 +307,37 @@ else:
     title = f"{EVENT_NAME} · {REPO}"
     text = f"## 📢 事件 / Event: `{EVENT_NAME}`\n\n_{REPO}_\n\n—— **GitHub**"
 
-payload = json.dumps({
+# @ 提醒：text 末尾追加 @ 标记（钉钉要求 text 中必须出现 @对象）
+mention_parts = []
+if MENTION_USERS:
+    for uid in [u.strip() for u in MENTION_USERS.split(",") if u.strip()]:
+        mention_parts.append(f"@{uid}")
+if MENTION_MOBILES:
+    for m in [m.strip() for m in MENTION_MOBILES.split(",") if m.strip()]:
+        mention_parts.append(f"@{m}")
+if MENTION_ALL:
+    mention_parts.append("@all")
+
+if mention_parts:
+    text += "\n\n" + " ".join(mention_parts)
+
+payload_obj = {
     "msgtype": "markdown",
     "markdown": {"title": title, "text": text},
-}).encode()
+}
+
+# 有 @ 内容时才注入 at 对象
+at_payload = {}
+if MENTION_USERS:
+    at_payload["atUserIds"] = [u.strip() for u in MENTION_USERS.split(",") if u.strip()]
+if MENTION_MOBILES:
+    at_payload["atMobiles"] = [m.strip() for m in MENTION_MOBILES.split(",") if m.strip()]
+if MENTION_ALL:
+    at_payload["isAtAll"] = True
+if at_payload:
+    payload_obj["at"] = at_payload
+
+payload = json.dumps(payload_obj).encode()
 
 # ── send with retry ──────────────────────────────────────
 

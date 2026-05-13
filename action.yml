@@ -22,6 +22,18 @@ inputs:
     description: 'git log --pretty=format 模板，用于生成 Release body 中的 changelog'
     required: false
     default: '- **%h** %s (%an, %ad)%n%b'
+  mention_users:
+    description: 要 @ 的钉钉 userId（逗号分隔），需在钉钉管理后台查询
+    required: false
+    default: ''
+  mention_mobiles:
+    description: 要 @ 的手机号（逗号分隔），仅群内成员有效
+    required: false
+    default: ''
+  mention_all:
+    description: 是否 @ 所有人（true/false）
+    required: false
+    default: 'false'
 
 outputs:
   version:
@@ -143,6 +155,9 @@ runs:
         DINGTALK_EVENT: ${{ inputs.event }}
         DINGTALK_VERSION: ${{ steps.tag.outputs.version }}
         DINGTALK_SHOULD_RELEASE: ${{ steps.tag.outputs.should_release }}
+        DINGTALK_MENTION_USERS: ${{ inputs.mention_users }}
+        DINGTALK_MENTION_MOBILES: ${{ inputs.mention_mobiles }}
+        DINGTALK_MENTION_ALL: ${{ inputs.mention_all }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}
         GITHUB_REPOSITORY: ${{ github.repository }}

@@ -111,6 +111,9 @@ jobs:
 | `event` | ❌ | `''` | 手动覆盖事件类型（如 `release`），默认自动检测 |
 | `create_release` | ❌ | `'true'` | 是否自动创建 GitHub Release |
 | `changelog_format` | ❌ | `- **%h** %s (%an, %ad)%n%b` | git log 格式化模板，用于 Release body 中的 changelog |
+| `mention_users` | ❌ | `''` | 要 @ 的钉钉 userId（逗号分隔），需在钉钉管理后台查看 |
+| `mention_mobiles` | ❌ | `''` | 要 @ 的手机号（逗号分隔），仅群内成员有效 |
+| `mention_all` | ❌ | `'false'` | 是否 @ 所有人（`'true'` / `'false'`） |
 
 ## 输出 / Outputs
 
