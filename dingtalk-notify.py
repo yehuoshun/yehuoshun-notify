@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """DingTalk notification for GitHub repo events — 中英双语 Markdown 模板."""
-import json, os, re, urllib.request
+import json, os, re, time, urllib.request, urllib.error
 
 WEBHOOK = os.environ["DINGTALK_WEBHOOK"]
 CUSTOM_EVENT = os.environ.get("DINGTALK_EVENT", "")
@@ -211,6 +211,21 @@ payload = json.dumps({
     "markdown": {"title": title, "text": text},
 }).encode()
 
-req = urllib.request.Request(WEBHOOK, data=payload, headers={"Content-Type": "application/json"})
-resp = urllib.request.urlopen(req)
-print(f"[DingTalk] {resp.status} {resp.read().decode()}")
+# ── send with retry ──────────────────────────────────────
+
+MAX_RETRIES = 3
+for attempt in range(MAX_RETRIES):
+    try:
+        req = urllib.request.Request(WEBHOOK, data=payload, headers={"Content-Type": "application/json"})
+        resp = urllib.request.urlopen(req, timeout=10)
+        print(f"[DingTalk] ✅ {resp.status} {resp.read().decode()}")
+        break
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+        print(f"[DingTalk] ⚠️ 尝试 {attempt+1}/{MAX_RETRIES} 失败 / Attempt {attempt+1}/{MAX_RETRIES} failed: {e}")
+        if attempt < MAX_RETRIES - 1:
+            wait = 2 ** attempt
+            print(f"[DingTalk] ⏳ {wait}s 后重试 / retrying in {wait}s")
+            time.sleep(wait)
+        else:
+            print("[DingTalk] ❌ 通知发送失败，已重试3次 / Notification failed after 3 retries")
+            # 不抛异常：通知失败不应阻断 CI

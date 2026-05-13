@@ -14,6 +14,10 @@ inputs:
     description: 是否自动创建 GitHub Release（默认 true，有自己打包流程的仓库设为 false）
     required: false
     default: 'true'
+  changelog_format:
+    description: 'git log --pretty=format 模板，用于生成 Release body 中的 changelog'
+    required: false
+    default: '- **%h** %s (%an, %ad)%n%b'
 
 runs:
   using: composite
@@ -44,15 +48,18 @@ runs:
         echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
 
         # 生成 changelog（上次 release 以来的所有非 merge 提交）
+        FMT="${{ inputs.changelog_format }}"
         LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
         if [ -n "$LAST_TAG" ]; then
-          LOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- **%s**%n%b" --no-merges)
+          LOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"$FMT" --no-merges)
         else
-          LOG=$(git log --pretty=format:"- **%s**%n%b" --no-merges)
+          LOG=$(git log --pretty=format:"$FMT" --no-merges)
         fi
-        echo "changelog<<CHANGELOG_EOF" >> $GITHUB_OUTPUT
+        # 用随机后缀防 heredoc 注入
+        CH_DELIM="CHANGELOG_${RANDOM}_$$"
+        echo "changelog<<${CH_DELIM}" >> $GITHUB_OUTPUT
         echo "$LOG" >> $GITHUB_OUTPUT
-        echo "CHANGELOG_EOF" >> $GITHUB_OUTPUT
+        echo "${CH_DELIM}" >> $GITHUB_OUTPUT
 
         if [ "$SHOULD_RELEASE" = "true" ]; then
           # 提取版本号：commit message 以 vX.Y 开头 → 直接用
@@ -95,11 +102,11 @@ runs:
         name: Latest
         tag_name: latest
         body: |
-          ## 📝 最近变更
+          ## 📝 最近变更 / Recent Changes
 
           ${{ steps.tag.outputs.changelog }}
 
-          📖 [查看文档](https://github.com/${{ github.repository }}#readme)
+          📖 [查看文档 / View Docs](https://github.com/${{ github.repository }}#readme)
         files: SKILL.md
         make_latest: true
 
@@ -110,11 +117,11 @@ runs:
         name: ${{ steps.tag.outputs.version }}
         tag_name: ${{ steps.tag.outputs.version }}
         body: |
-          ## 📝 ${{ steps.tag.outputs.version }} 变更
+          ## 📝 ${{ steps.tag.outputs.version }} 变更 / Changes
 
           ${{ steps.tag.outputs.changelog }}
 
-          📖 [查看文档](https://github.com/${{ github.repository }}#readme)
+          📖 [查看文档 / View Docs](https://github.com/${{ github.repository }}#readme)
         files: SKILL.md
 
     - name: Send DingTalk Notification
