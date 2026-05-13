@@ -100,6 +100,7 @@ def pull_request():
         "opened":   "🟢 新建 / Opened",
         "closed":   "🔴 关闭 / Closed",
         "reopened": "🔄 重新打开 / Reopened",
+        "synchronize": "🔄 代码更新 / Code Updated",
         "review_requested": "👀 请求审查 / Review Requested",
         "ready_for_review": "📋 准备审查 / Ready for Review",
     }.get(action, f"📌 {action}")
@@ -211,6 +212,46 @@ def release():
     return title, text
 
 
+def pull_request_review():
+    """pull_request_review 事件 — PR 审查结果通知。"""
+    review = ev.get("review", {})
+    pr = ev.get("pull_request", {})
+    state = review.get("state", "?")
+
+    icon = {
+        "approved": "✅",
+        "changes_requested": "🔄",
+        "commented": "💬",
+        "dismissed": "↩️",
+    }.get(state, "📌")
+
+    label = {
+        "approved": "已批准 / Approved",
+        "changes_requested": "请求修改 / Changes Requested",
+        "commented": "已评论 / Commented",
+        "dismissed": "已驳回 / Dismissed",
+    }.get(state, state)
+
+    reviewer = review.get("user", {}).get("login", "?")
+    pr_title = pr.get("title", "?")
+    pr_url = pr.get("html_url", "")
+    body = _truncate(review.get("body", ""))
+
+    title = f"Review {state} · {REPO}"
+    text = f"""## {icon} PR 审查 {label}
+
+**{pr_title}**
+
+- **审查人** / *Reviewer*: **{reviewer}**
+- **PR** / *PR*: [#{pr.get('number', '?')}]({pr_url})"""
+
+    if body:
+        text += f"\n\n{body}"
+
+    text += f"\n\n[📎 查看 PR / View PR]({pr_url})  \n\n—— **GitHub**"
+    return title, text
+
+
 def workflow_run():
     """workflow_run 事件 — CI/CD 完成通知。"""
     wf = ev.get("workflow_run", {})
@@ -249,6 +290,7 @@ def workflow_run():
 handlers = {
     "push": push,
     "pull_request": pull_request,
+    "pull_request_review": pull_request_review,
     "issues": issues,
     "release": release,
     "workflow_run": workflow_run,

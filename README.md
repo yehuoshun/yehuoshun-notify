@@ -46,6 +46,22 @@ jobs:
 
 Push 时自动打 tag、生成 Release、发送钉钉通知。仅 README 变更时跳过 Release。
 
+### PR Review 通知
+
+```yaml
+on:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: yehuoshun/yehuoshun-notify@main
+        with:
+          webhook: ${{ secrets.DINGTALK_WEBHOOK }}
+```
+
 ### Workflow Run 通知（CI/CD 结果）
 
 ```yaml
@@ -125,7 +141,8 @@ jobs:
 ## 消息格式 / Message Format
 
 - **Push**: 仓库/分支/提交者/提交数 + commit 列表（自动匹配 emoji）
-- **PR**: 状态图标/标题/作者/分支/labels/内容预览（含 review_requested / ready_for_review）
+- **PR**: 状态图标/标题/作者/分支/labels/内容预览（含 review_requested / ready_for_review / synchronize）
+- **PR Review**: 审查结果通知（✅批准 / 🔄请求修改 / 💬评论 / ↩️驳回）
 - **Issue**: 状态图标/标题/作者/labels/内容预览
 - **Release**: 版本号/发布者 + 完整 changelog
 - **Workflow Run**: 工作流名/状态/分支/触发者（✅成功 ❌失败 ⏹️取消 ⏭️跳过）
