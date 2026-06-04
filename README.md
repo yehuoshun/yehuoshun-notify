@@ -25,27 +25,6 @@ jobs:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
 ```
 
-### 带自动 Release 的 Push
-
-```yaml
-on:
-  push:
-    branches: [main]
-
-jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: yehuoshun/yehuoshun-notify@main
-        id: notify
-        with:
-          webhook: ${{ secrets.DINGTALK_WEBHOOK }}
-      - name: 下游使用版本号
-        run: echo "新版本: ${{ steps.notify.outputs.version }}"
-```
-
-Push 时自动打 tag、生成 Release、发送钉钉通知。仅 README 变更时跳过 Release。
-
 ### PR Review 通知
 
 ```yaml
@@ -109,38 +88,10 @@ jobs:
 |---|---|---|---|
 | `webhook` | ✅ | — | 钉钉机器人 webhook 地址 |
 | `event` | ❌ | `''` | 手动覆盖事件类型（如 `release`），默认自动检测 |
-| `create_release` | ❌ | `'true'` | 是否自动创建 GitHub Release |
-| `changelog_format` | ❌ | `- **%h** %s (%an, %ad)%n%b` | git log 格式化模板，用于 Release body 中的 changelog |
 | `max_commits` | ❌ | `'0'` | push 通知最多展示的 commit 条数（0=全部） |
 | `mention_users` | ❌ | `''` | 要 @ 的钉钉 userId（逗号分隔），需在钉钉管理后台查看 |
 | `mention_mobiles` | ❌ | `''` | 要 @ 的手机号（逗号分隔），仅群内成员有效 |
 | `mention_all` | ❌ | `'false'` | 是否 @ 所有人（`'true'` / `'false'`） |
-
-## 输出 / Outputs
-
-| 输出 / Output | 说明 / Description |
-|---|---|
-| `version` | 生成的版本号（仅 push 且触发 release 时有效） |
-| `should_release` | 是否触发了 release（仅 push 时有效，`'true'` / `'false'`） |
-
-### changelog_format 自定义示例
-
-```yaml
-- uses: yehuoshun/yehuoshun-notify@main
-  with:
-    webhook: ${{ secrets.DINGTALK_WEBHOOK }}
-    # 简洁模式：仅主题
-    changelog_format: '- %s'
-    # 完整模式（默认）：hash + 主题 + 作者 + 日期 + body
-    # changelog_format: '- **%h** %s (%an, %ad)%n%b'
-```
-
-格式占位符参考 `git log --pretty=format`：
-- `%h` — 缩写 commit hash
-- `%s` — 提交主题
-- `%an` — 作者名
-- `%ad` — 日期
-- `%b` — body 全文
 
 ## 消息格式 / Message Format
 
@@ -149,7 +100,6 @@ jobs:
 - **PR Review**: 审查结果通知（✅批准 / 🔄请求修改 / 💬评论 / ↩️驳回）
 - **Release**: 版本号/发布者 + 完整 changelog + 文件变更列表
 - **Issue**: 状态图标/标题/作者/labels/内容预览
-- **Release**: 版本号/发布者 + 完整 changelog
 - **Workflow Run**: 工作流名/状态/分支/触发者（✅成功 ❌失败 ⏹️取消 ⏭️跳过）
 - 所有消息中英双语，中文在前
 - 自动附加 `> GitHub` 关键词
