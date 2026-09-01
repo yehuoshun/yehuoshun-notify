@@ -3,6 +3,8 @@
 中英双语 GitHub 事件通知 → 钉钉机器人。  
 Bilingual (CN/EN) GitHub event → DingTalk bot.
 
+> 🏷️ 稳定版使用 `@v1`，最新开发版使用 `@main`。
+
 ## 使用 / Usage
 
 ### 常规通知（push / PR / issue）
@@ -20,7 +22,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: yehuoshun/yehuoshun-notify@main
+      - uses: yehuoshun/yehuoshun-notify@v1
         with:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
 ```
@@ -36,7 +38,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: yehuoshun/yehuoshun-notify@main
+      - uses: yehuoshun/yehuoshun-notify@v1
         with:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
 ```
@@ -53,7 +55,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: yehuoshun/yehuoshun-notify@main
+      - uses: yehuoshun/yehuoshun-notify@v1
         with:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
 ```
@@ -76,7 +78,7 @@ jobs:
         with:
           tag_name: latest
           files: SKILL.md
-      - uses: yehuoshun/yehuoshun-notify@main
+      - uses: yehuoshun/yehuoshun-notify@v1
         with:
           webhook: ${{ secrets.DINGTALK_WEBHOOK }}
           event: release
