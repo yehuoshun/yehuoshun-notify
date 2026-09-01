@@ -91,7 +91,7 @@ def push():
             lines.append(f"- {_emoji(title)} {title}  — **{author}**")
 
     commit_text = "\n".join(lines)
-    if total > (MAX_COMMITS if MAX_COMMITS > 0 else total):
+    if total > 0:
         shown = MAX_COMMITS if MAX_COMMITS > 0 else total
         commit_text += f"\n- ⋯ 共 **{total}** 条 / **{total}** total"
 
