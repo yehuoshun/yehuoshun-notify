@@ -136,7 +136,7 @@ def pull_request():
         "review_requested": "👀 请求审查 / Review Requested",
         "ready_for_review": "📋 准备审查 / Ready for Review",
     }.get(action, f"📌 {action}")
-    if action == "closed" and pr.get("merged"):
+    if action == "closed" and pr.get("merged", False):
         action_label = "🟣 已合并 / Merged"
 
     user = pr.get("user", {}).get("login", "?")
