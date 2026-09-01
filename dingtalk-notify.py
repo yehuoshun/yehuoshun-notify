@@ -284,7 +284,7 @@ def workflow_run():
     """workflow_run 事件 — CI/CD 完成通知。"""
     wf = ev.get("workflow_run", {})
     name = wf.get("name", "?")
-    conclusion = wf.get("conclusion", "?")
+    conclusion = wf.get("conclusion") or "?"
     url = wf.get("html_url", "")
     branch = wf.get("head_branch", "?")
     actor = (wf.get("actor") or {}).get("login", "?")
