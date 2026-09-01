@@ -108,6 +108,7 @@ def push():
         commit_text += f"\n- ⋯ 共 **{total}** 条 / **{total}** total"
 
     title = f"Push · {REPO}"
+    diff_link = f"\n[📎 查看变更 / View diff]({compare})" if compare else ""
     text = f"""## 🚀 代码推送 · Code Push  
 
 **仓库** / *Repo*: {REPO}  
@@ -116,8 +117,7 @@ def push():
 **提交数** / *Commits*: **{total}**  
 
 {commit_text}  
-
-[📎 查看变更 / View diff]({compare})  
+{diff_link}
 
 —— **GitHub**"""
     return title, text
