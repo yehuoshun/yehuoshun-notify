@@ -56,9 +56,17 @@ def _emoji(msg):
     key = (m.group(1) if m else "").lower()
     return COMMIT_EMOJI.get(key) or COMMIT_EMOJI.get(COMMIT_ALIASES.get(key, ""), "•")
 
-def _truncate(text, n=300):
+def _truncate(text, n=300, max_bytes=0):
+    """截断文本。按字符数(n) 或字节数(max_bytes) 截断，优先字节数。"""
     if not text: return ""
     text = text.strip()
+    if max_bytes and len(text.encode("utf-8")) > max_bytes:
+        truncated = text.encode("utf-8")[:max_bytes]
+        decoded = truncated.decode("utf-8", errors="ignore")
+        last_nl = decoded.rfind("\n")
+        if last_nl > 0:
+            decoded = decoded[:last_nl]
+        return decoded + "\n…"
     return text if len(text) <= n else text[:n].rsplit("\n", 1)[0] + "\n…"
 
 
@@ -222,8 +230,8 @@ def release():
 """
 
     if body:
-        # release body 通常包含完整 changelog，直接展示
-        text += f"\n{body}\n"
+        # release body 通常包含完整 changelog，截断防超钉钉 20KB 限制
+        text += f"\n{_truncate(body, max_bytes=5000)}\n"
 
     if url:
         text += f"\n[📎 查看 Release / View Release]({url})"
@@ -335,6 +343,13 @@ if MENTION_ALL:
 
 if mention_parts:
     text += "\n\n" + " ".join(mention_parts)
+
+# ── 消息长度检查：确保不超过钉钉 20KB 限制 ───────────────
+MAX_TEXT_BYTES = 19000
+text_bytes = text.encode("utf-8")
+if len(text_bytes) > MAX_TEXT_BYTES:
+    head = text_bytes[:MAX_TEXT_BYTES - 100].decode("utf-8", errors="ignore")
+    text = head.rsplit("\n", 1)[0] + "\n\n⋯ (内容过长已截断 / content truncated)"
 
 payload_obj = {
     "msgtype": "markdown",
