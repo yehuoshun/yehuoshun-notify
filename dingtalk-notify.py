@@ -18,7 +18,11 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "?")
 MENTION_USERS = os.environ.get("DINGTALK_MENTION_USERS", "")
 MENTION_MOBILES = os.environ.get("DINGTALK_MENTION_MOBILES", "")
 MENTION_ALL = os.environ.get("DINGTALK_MENTION_ALL", "false") == "true"
-MAX_COMMITS = int(os.environ.get("DINGTALK_MAX_COMMITS", "0") or "0")
+try:
+    MAX_COMMITS = int(os.environ.get("DINGTALK_MAX_COMMITS", "0") or "0")
+except ValueError:
+    print(f"[DingTalk] ⚠️ DINGTALK_MAX_COMMITS 不是有效数字，使用默认值 0", file=sys.stderr)
+    MAX_COMMITS = 0
 
 try:
     with open(EVENT_PATH) as f:
