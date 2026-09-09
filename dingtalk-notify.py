@@ -17,7 +17,7 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "?")
 # @ 提醒
 MENTION_USERS = os.environ.get("DINGTALK_MENTION_USERS", "")
 MENTION_MOBILES = os.environ.get("DINGTALK_MENTION_MOBILES", "")
-MENTION_ALL = os.environ.get("DINGTALK_MENTION_ALL", "false") == "true"
+MENTION_ALL = os.environ.get("DINGTALK_MENTION_ALL", "false").lower() in ("true", "1", "yes")
 try:
     MAX_COMMITS = int(os.environ.get("DINGTALK_MAX_COMMITS", "0") or "0")
 except ValueError:
@@ -319,101 +319,105 @@ def workflow_run():
 
 # ── dispatch ─────────────────────────────────────────────
 
-handlers = {
-    "push": push,
-    "pull_request": pull_request,
-    "pull_request_review": pull_request_review,
-    "issues": issues,
-    "release": release,
-    "workflow_run": workflow_run,
-}
-handler = handlers.get(EVENT_NAME)
-if handler:
-    title, text = handler()
-else:
-    title = f"{EVENT_NAME} · {REPO}"
-    text = f"## 📢 事件 / Event: `{EVENT_NAME}`\n\n_{REPO}_\n\n—— **GitHub**"
+def main():
+    handlers = {
+        "push": push,
+        "pull_request": pull_request,
+        "pull_request_review": pull_request_review,
+        "issues": issues,
+        "release": release,
+        "workflow_run": workflow_run,
+    }
+    handler = handlers.get(EVENT_NAME)
+    if handler:
+        title, text = handler()
+    else:
+        title = f"{EVENT_NAME} · {REPO}"
+        text = f"## 📢 事件 / Event: `{EVENT_NAME}`\n\n_{REPO}_\n\n—— **GitHub**"
 
-# @ 提醒：text 末尾追加 @ 标记（钉钉要求 text 中必须出现 @对象）
-mention_parts = []
-if MENTION_USERS:
-    for uid in [u.strip() for u in MENTION_USERS.split(",") if u.strip()]:
-        mention_parts.append(f"@{uid}")
-if MENTION_MOBILES:
-    for m in [m.strip() for m in MENTION_MOBILES.split(",") if m.strip()]:
-        mention_parts.append(f"@{m}")
-if MENTION_ALL:
-    mention_parts.append("@all")
+    # @ 提醒：text 末尾追加 @ 标记
+    mention_parts = []
+    if MENTION_USERS:
+        for uid in [u.strip() for u in MENTION_USERS.split(",") if u.strip()]:
+            mention_parts.append(f"@{uid}")
+    if MENTION_MOBILES:
+        for m in [m.strip() for m in MENTION_MOBILES.split(",") if m.strip()]:
+            mention_parts.append(f"@{m}")
+    if MENTION_ALL:
+        mention_parts.append("@all")
 
-if mention_parts:
-    text += "\n\n" + " ".join(mention_parts)
+    if mention_parts:
+        text += "\n\n" + " ".join(mention_parts)
 
-# ── 消息长度检查：确保不超过钉钉 20KB 限制 ───────────────
-MAX_TEXT_BYTES = 19000
-text_bytes = text.encode("utf-8")
-if len(text_bytes) > MAX_TEXT_BYTES:
-    head = text_bytes[:MAX_TEXT_BYTES - 100].decode("utf-8", errors="ignore")
-    text = head.rsplit("\n", 1)[0] + "\n\n⋯ (内容过长已截断 / content truncated)"
+    # 消息长度检查：确保不超过钉钉 20KB 限制
+    MAX_TEXT_BYTES = 19000
+    text_bytes = text.encode("utf-8")
+    if len(text_bytes) > MAX_TEXT_BYTES:
+        head = text_bytes[:MAX_TEXT_BYTES - 100].decode("utf-8", errors="ignore")
+        text = head.rsplit("\n", 1)[0] + "\n\n⋯ (内容过长已截断 / content truncated)"
 
-payload_obj = {
-    "msgtype": "markdown",
-    "markdown": {"title": title, "text": text},
-}
+    send_notification(title, text)
 
-# 有 @ 内容时才注入 at 对象
-at_payload = {}
-if MENTION_USERS:
-    at_payload["atUserIds"] = [u.strip() for u in MENTION_USERS.split(",") if u.strip()]
-if MENTION_MOBILES:
-    at_payload["atMobiles"] = [m.strip() for m in MENTION_MOBILES.split(",") if m.strip()]
-if MENTION_ALL:
-    at_payload["isAtAll"] = True
-if at_payload:
-    payload_obj["at"] = at_payload
 
-payload = json.dumps(payload_obj).encode()
+def send_notification(title, text):
+    """带重试的钉钉消息发送。"""
+    payload_obj = {
+        "msgtype": "markdown",
+        "markdown": {"title": title, "text": text},
+    }
 
-# ── send with retry ──────────────────────────────────────
+    # 有 @ 内容时才注入 at 对象
+    at_payload = {}
+    if MENTION_USERS:
+        at_payload["atUserIds"] = [u.strip() for u in MENTION_USERS.split(",") if u.strip()]
+    if MENTION_MOBILES:
+        at_payload["atMobiles"] = [m.strip() for m in MENTION_MOBILES.split(",") if m.strip()]
+    if MENTION_ALL:
+        at_payload["isAtAll"] = True
+    if at_payload:
+        payload_obj["at"] = at_payload
 
-MAX_RETRIES = 3
-for attempt in range(MAX_RETRIES):
-    try:
-        req = urllib.request.Request(WEBHOOK, data=payload, headers={"Content-Type": "application/json"})
-        resp = urllib.request.urlopen(req, timeout=10)
-        resp_body = resp.read().decode()
-        # 钉钉返回 200 但 errcode 非 0 → 业务错误（限流等）
+    payload = json.dumps(payload_obj).encode()
+
+    MAX_RETRIES = 3
+    for attempt in range(MAX_RETRIES):
         try:
-            body = json.loads(resp_body)
-            errcode = body.get("errcode", 0)
-            if errcode == 0:
-                print(f"[DingTalk] ✅ 发送成功 / Sent")
-                break
-            elif errcode == 90030:
-                print(f"[DingTalk] ⚠️ 钉钉频率超限 / rate limited, 1 分钟后重试")
-                if attempt < MAX_RETRIES - 1:
-                    time.sleep(60)
-                    continue
+            req = urllib.request.Request(WEBHOOK, data=payload, headers={"Content-Type": "application/json"})
+            resp = urllib.request.urlopen(req, timeout=10)
+            resp_body = resp.read().decode()
+            try:
+                body = json.loads(resp_body)
+                errcode = body.get("errcode", 0)
+                if errcode == 0:
+                    print(f"[DingTalk] ✅ 发送成功 / Sent")
+                    return
+                elif errcode == 90030:
+                    print(f"[DingTalk] ⚠️ 钉钉频率超限 / rate limited, 1 分钟后重试")
+                    if attempt < MAX_RETRIES - 1:
+                        time.sleep(60)
+                        continue
                 else:
-                    print("[DingTalk] ❌ 通知发送失败，已重试3次 / Notification failed after 3 retries")
-            else:
-                errmsg = body.get("errmsg", "unknown")
-                print(f"[DingTalk] ⚠️ errcode={errcode}: {errmsg}")
-                if attempt < MAX_RETRIES - 1:
-                    wait = 2 ** attempt
-                    print(f"[DingTalk] ⏳ {wait}s 后重试 / retrying in {wait}s")
-                    time.sleep(wait)
-                    continue
-                else:
-                    print("[DingTalk] ❌ 通知发送失败，已重试3次 / Notification failed after 3 retries")
-        except json.JSONDecodeError:
-            print(f"[DingTalk] ✅ {resp.status} (非 JSON 响应)")
-            break
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
-        print(f"[DingTalk] ⚠️ 尝试 {attempt+1}/{MAX_RETRIES} 失败 / Attempt {attempt+1}/{MAX_RETRIES} failed: {e}")
-        if attempt < MAX_RETRIES - 1:
-            wait = 2 ** attempt
-            print(f"[DingTalk] ⏳ {wait}s 后重试 / retrying in {wait}s")
-            time.sleep(wait)
-        else:
-            print("[DingTalk] ❌ 通知发送失败，已重试3次 / Notification failed after 3 retries")
-            # 不抛异常：通知失败不应阻断 CI
+                    errmsg = body.get("errmsg", "unknown")
+                    print(f"[DingTalk] ⚠️ errcode={errcode}: {errmsg}")
+                    if attempt < MAX_RETRIES - 1:
+                        wait = min(2 ** attempt * 2, 60)
+                        print(f"[DingTalk] ⏳ {wait}s 后重试 / retrying in {wait}s")
+                        time.sleep(wait)
+                        continue
+            except json.JSONDecodeError:
+                print(f"[DingTalk] ✅ {resp.status} (非 JSON 响应)")
+                return
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+            print(f"[DingTalk] ⚠️ 尝试 {attempt+1}/{MAX_RETRIES} 失败 / Attempt {attempt+1}/{MAX_RETRIES} failed: {e}")
+            if attempt < MAX_RETRIES - 1:
+                wait = min(2 ** attempt * 2, 60)
+                print(f"[DingTalk] ⏳ {wait}s 后重试 / retrying in {wait}s")
+                time.sleep(wait)
+                continue
+
+    print("[DingTalk] ❌ 通知发送失败，已重试3次 / Notification failed after 3 retries")
+    # 不抛异常：通知失败不应阻断 CI
+
+
+if __name__ == "__main__":
+    main()
