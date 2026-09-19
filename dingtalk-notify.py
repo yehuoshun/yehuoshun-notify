@@ -71,7 +71,7 @@ def _truncate(text, n=300, max_bytes=0):
         if last_nl > 0:
             decoded = decoded[:last_nl]
         return decoded + "\n…"
-    return text if len(text) <= n else text[:n].rsplit("\n", 1)[0] + "\n…"
+    return text if len(text) <= n else text[:n].rstrip() + "\n…"
 
 
 # ── builders ─────────────────────────────────────────────
