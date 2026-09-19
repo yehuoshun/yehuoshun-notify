@@ -67,10 +67,7 @@ def _truncate(text, n=300, max_bytes=0):
     if max_bytes and len(text.encode("utf-8")) > max_bytes:
         truncated = text.encode("utf-8")[:max_bytes]
         decoded = truncated.decode("utf-8", errors="ignore")
-        last_nl = decoded.rfind("\n")
-        if last_nl > 0:
-            decoded = decoded[:last_nl]
-        return decoded + "\n…"
+        return decoded.rstrip() + "\n…"
     return text if len(text) <= n else text[:n].rstrip() + "\n…"
 
 
