@@ -84,15 +84,11 @@ def push():
     total = len(commits)
 
     lines = []
-    seen = set()
     for c in commits[:MAX_COMMITS] if MAX_COMMITS > 0 else commits:
         raw = c.get("message", "")
         msgParts = raw.split("\n")
         title = msgParts[0][:80]
         author = c.get("author", {}).get("name", "?")
-        key = f"{title}|{author}"
-        if key in seen: continue
-        seen.add(key)
 
         # Show all body lines for full context
         body = [b.strip() for b in msgParts[1:] if b.strip() and b.strip().startswith("-")]
