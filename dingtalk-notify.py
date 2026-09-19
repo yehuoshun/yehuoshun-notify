@@ -104,8 +104,10 @@ def push():
 
     commit_text = "\n".join(lines)
     if total > 0:
-        shown = MAX_COMMITS if MAX_COMMITS > 0 else total
-        commit_text += f"\n- ⋯ 共 **{total}** 条 / **{total}** total"
+        if MAX_COMMITS > 0 and total > MAX_COMMITS:
+            commit_text += f"\n- ⋯ 显示 **{MAX_COMMITS}** 条 / 共 **{total}** 条 total — **{MAX_COMMITS}** of **{total}** shown"
+        else:
+            commit_text += f"\n- ⋯ 共 **{total}** 条 / **{total}** total"
 
     title = f"Push · {REPO}"
     diff_link = f"\n[📎 查看变更 / View diff]({compare})" if compare else ""
