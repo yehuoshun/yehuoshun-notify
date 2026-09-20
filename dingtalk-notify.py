@@ -88,9 +88,14 @@ def push():
         author = c.get("author", {}).get("name", "?")
 
         # Show all body lines for full context
-        body = [b.strip() for b in msgParts[1:] if b.strip() and b.strip().startswith("-")]
+        body = [b.strip() for b in msgParts[1:] if b.strip()]
         if body:
-            subItems = "\n".join(f"  {b}" for b in body)
+            # 所有 body 行统一加 bullet，保持列表一致性
+            body_flat = []
+            for b in body:
+                clean = re.sub(r"^[-*]\s+", "", b)  # 去掉已有的 bullet，避免双重
+                body_flat.append(f"- {clean}")
+            subItems = "\n".join(f"  {b}" for b in body_flat)
             lines.append(f"- {_emoji(title)} {title}  — **{author}**\n{subItems}")
         else:
             lines.append(f"- {_emoji(title)} {title}  — **{author}**")
