@@ -77,8 +77,30 @@ def push():
     ref = os.environ["GITHUB_REF_NAME"]
     actor = os.environ["GITHUB_ACTOR"]
     compare = ev.get("compare", "")
+    is_tag = (ev.get("ref", "") or "").startswith("refs/tags/")
     commits = ev.get("commits", [])
+    # 兜底：tag 推送或 commits 缺失时，退回 head_commit，避免渲染出空消息
+    if not commits:
+        hc = ev.get("head_commit")
+        if hc:
+            commits = [hc]
     total = len(commits)
+
+    # tag 推送且无新提交：用标签专用模板
+    # （GitHub 的 tag push payload 里 commits 恒为空、head_commit 为 null）
+    if is_tag and total == 0:
+        title = f"🏷️ Tag · {ref} · {REPO}"
+        diff_link = f"\n[📎 查看标签 / View tag]({compare})" if compare else ""
+        text = f"""## 🏷️ 标签推送 · Tag Push  
+
+**仓库** / *Repo*: {REPO}  
+**标签** / *Tag*: **{ref}**  
+**提交者** / *Author*: **{actor}**  
+
+{diff_link}
+
+—— **GitHub**"""
+        return title, text
 
     lines = []
     for c in commits[:MAX_COMMITS] if MAX_COMMITS > 0 else commits:
