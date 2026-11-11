@@ -223,6 +223,25 @@ def release():
     """
     rel = ev.get("release", {})
     action = ev.get("action", "published")
+
+    if not rel:
+        # 兜底：push(tag) 事件 + DINGTALK_EVENT=release 覆盖时（README「外部 Release
+        # 通知」用法），payload 里没有 release 对象 —— 用 tag 名 / 触发者 / commits
+        # 补全，否则会渲染出一条标题、版本、发布者全是「?」的消息。
+        tag = os.environ.get("GITHUB_REF_NAME", "") or "?"
+        commits = ev.get("commits") or ([ev["head_commit"]] if ev.get("head_commit") else [])
+        rel = {
+            "tag_name": tag,
+            "name": tag,
+            "author": {"login": os.environ.get("GITHUB_ACTOR", "?")},
+            "body": "\n".join(
+                f"- {_emoji(m)} {m.splitlines()[0][:80]}"
+                for m in (c.get("message", "") for c in commits) if m
+            ),
+            "html_url": ev.get("compare", "") or f"https://github.com/{REPO}/releases/tag/{tag}",
+            "prerelease": False,
+            "draft": False,
+        }
     tag = rel.get("tag_name", "?")
     name = rel.get("name") or tag
     body = rel.get("body", "")
@@ -357,7 +376,20 @@ def main():
         title = f"{EVENT_NAME} · {REPO}"
         text = f"## 📢 事件 / Event: `{EVENT_NAME}`\n\n_{REPO}_\n\n—— **GitHub**"
 
-    # @ 提醒：text 末尾追加 @ 标记
+    # 消息长度检查：确保不超过钉钉 20KB 限制（先截断，再补关键词和 @ 提醒，
+    # 否则它们位于消息末尾，会被截断吞掉）
+    MAX_TEXT_BYTES = 19000
+    text_bytes = text.encode("utf-8")
+    if len(text_bytes) > MAX_TEXT_BYTES:
+        head = text_bytes[:MAX_TEXT_BYTES - 100].decode("utf-8", errors="ignore")
+        text = head.rsplit("\n", 1)[0] + "\n\n⋯ (内容过长已截断 / content truncated)"
+
+    # 钉钉自定义关键词机器人要求正文含关键词（本项目为「GitHub」），
+    # 截断可能把结尾的「—— **GitHub**」切掉 → 机器人拒收（errcode 310000）。
+    if "GitHub" not in text:
+        text += "\n\n—— **GitHub**"
+
+    # @ 提醒：截断之后再追加，确保不会被切掉
     mention_parts = []
     if MENTION_USERS:
         for uid in [u.strip() for u in MENTION_USERS.split(",") if u.strip()]:
@@ -370,13 +402,6 @@ def main():
 
     if mention_parts:
         text += "\n\n" + " ".join(mention_parts)
-
-    # 消息长度检查：确保不超过钉钉 20KB 限制
-    MAX_TEXT_BYTES = 19000
-    text_bytes = text.encode("utf-8")
-    if len(text_bytes) > MAX_TEXT_BYTES:
-        head = text_bytes[:MAX_TEXT_BYTES - 100].decode("utf-8", errors="ignore")
-        text = head.rsplit("\n", 1)[0] + "\n\n⋯ (内容过长已截断 / content truncated)"
 
     send_notification(title, text)
 

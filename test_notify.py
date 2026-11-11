@@ -234,6 +234,33 @@ proc = subprocess.run([sys.executable, SCRIPT], capture_output=True, text=True, 
 check("rc=1", proc.returncode == 1, f"rc={proc.returncode}")
 check("报错提示", "事件文件不存在" in proc.stderr, proc.stderr)
 
+# ── 15. 超长消息截断：保留「GitHub」关键词 + @ 提醒 ─────────
+print("[15] 超长消息截断保留关键词/@")
+big = [{"message": "feat: " + "很长很长的提交信息" * 30 + f" #{i}", "author": {"name": "a"}} for i in range(200)]
+rc, out, payload = run_event("push", {"compare": "https://github.com/x/y/compare/a..b", "commits": big},
+                             extra_env={"DINGTALK_MENTION_ALL": "true"})
+text = (payload or {}).get("markdown", {}).get("text", "")
+check("rc=0", rc == 0, f"rc={rc} {out}")
+check("截断后 ≤19000B", 0 < len(text.encode("utf-8")) <= 19000, str(len(text.encode("utf-8"))))
+check("关键词 GitHub 保留", "GitHub" in text, repr(text[-120:]))
+check("@all 未被截断", text.rstrip().endswith("@all"), repr(text[-80:]))
+check("截断标记存在", "content truncated" in text)
+
+# ── 16. release 覆盖模式兜底（push tag payload 无 release 对象）──
+print("[16] release 覆盖兜底")
+rc, out, payload = run_event("push", {
+    "ref": "refs/tags/latest", "compare": "",
+    "commits": [{"message": "docs: 更新 SKILL.md", "author": {"name": "boss"}}],
+}, extra_env={"DINGTALK_EVENT": "release", "GITHUB_REF_NAME": "latest"})
+text = (payload or {}).get("markdown", {}).get("text", "")
+title = (payload or {}).get("markdown", {}).get("title", "")
+check("rc=0", rc == 0, f"rc={rc} {out}")
+check("版本号来自 tag", "`latest`" in text, text)
+check("无 ? 占位", "**?**" not in text and "`?`" not in text, text)
+check("发布者来自 actor", "**test-user**" in text, text)
+check("changelog 来自 commit", "docs: 更新 SKILL.md" in text, text)
+check("标题含 tag", "Release latest" in title, title)
+
 server.shutdown()
 print(f"\n===== 结果: {PASS} 通过 / {FAIL} 失败 =====")
 sys.exit(1 if FAIL else 0)
