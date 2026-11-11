@@ -98,13 +98,16 @@ jobs:
 ## 消息格式 / Message Format
 
 - **Push**: 仓库/分支/提交者/提交数 + 全部 commit 列表（默认全部显示，自动匹配 emoji + 别名）
+- **Tag Push**: 打标签推送无新提交时使用标签专用模板（仓库/标签/提交者 + 查看标签链接）
 - **PR**: 状态图标/标题/作者/分支/labels/内容预览（含 review_requested / ready_for_review / synchronize）
 - **PR Review**: 审查结果通知（✅批准 / 🔄请求修改 / 💬评论 / ↩️驳回）
 - **Release**: 版本号/发布者 + 完整 changelog + 文件变更列表
 - **Issue**: 状态图标/标题/作者/labels/内容预览
 - **Workflow Run**: 工作流名/状态/分支/触发者（✅成功 ❌失败 ⏹️取消 ⏭️跳过）
 - 所有消息中英双语，中文在前
-- 自动附加 `> GitHub` 关键词
+- 自动附加 `> GitHub` 关键词（正文过长被截断时也会补回，避免钉钉关键词校验拒收）
+- 消息超 19KB 自动截断，@ 提醒追加在截断之后
+- `event: release` 覆盖用法下若 payload 无 release 对象（如 push 触发），自动回退用标签名 / 触发者 / commit 列表填充
 
 ## 前置条件 / Prerequisites
 
