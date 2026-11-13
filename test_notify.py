@@ -261,6 +261,38 @@ check("发布者来自 actor", "**test-user**" in text, text)
 check("changelog 来自 commit", "docs: 更新 SKILL.md" in text, text)
 check("标题含 tag", "Release latest" in title, title)
 
+# ── 17. issue_comment（Issue 评论）─────────────────────────
+print("[17] issue_comment (Issue)")
+rc, out, payload = run_event("issue_comment", {
+    "action": "created",
+    "issue": {"number": 7, "title": "登录失败", "html_url": "https://github.com/x/issues/7"},
+    "comment": {"body": "我也遇到了\n+1", "user": {"login": "gina"},
+                "html_url": "https://github.com/x/issues/7#issuecomment-1"},
+})
+text = (payload or {}).get("markdown", {}).get("text", "")
+check("rc=0", rc == 0, f"rc={rc} {out}")
+check("Issue 评论标签", "Issue 评论 / Issue Comment" in text, text)
+check("评论者", "**gina**" in text)
+check("评论正文", "我也遇到了" in text)
+check("对象链接", "[#7]" in text)
+check("评论链接", "View Comment" in text)
+
+# ── 18. issue_comment（PR 评论，靠 pull_request 字段区分）──
+print("[18] issue_comment (PR)")
+rc, out, payload = run_event("issue_comment", {
+    "action": "created",
+    "issue": {"number": 50, "title": "Review me", "html_url": "https://github.com/x/pull/50",
+              "pull_request": {"url": "https://api.github.com/x/pull/50"}},
+    "comment": {"body": "LGTM 👍", "user": {"login": "hank"},
+                "html_url": "https://github.com/x/pull/50#issuecomment-2"},
+})
+text = (payload or {}).get("markdown", {}).get("text", "")
+title18 = (payload or {}).get("markdown", {}).get("title", "")
+check("rc=0", rc == 0, f"rc={rc} {out}")
+check("PR 评论标签", "PR 评论 / PR Comment" in text, text)
+check("评论者", "**hank**" in text)
+check("标题 Comment created", title18 == "Comment created · yehuoshun/test-repo", title18)
+
 server.shutdown()
 print(f"\n===== 结果: {PASS} 通过 / {FAIL} 失败 =====")
 sys.exit(1 if FAIL else 0)
