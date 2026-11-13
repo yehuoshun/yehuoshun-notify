@@ -217,6 +217,49 @@ def issues():
     return title, text
 
 
+def issue_comment():
+    """issue_comment 事件 — Issue / PR 评论通知。
+    PR 评论同样走本事件，靠 issue.pull_request 字段区分。
+    """
+    comment = ev.get("comment", {})
+    issue = ev.get("issue", {})
+    action = ev.get("action", "?")
+
+    is_pr = bool(issue.get("pull_request"))
+    kind = "PR 评论 / PR Comment" if is_pr else "Issue 评论 / Issue Comment"
+
+    icon = {"created": "💬", "edited": "✏️", "deleted": "🗑️"}.get(action, "📌")
+    action_label = {
+        "created": "新评论 / Created",
+        "edited": "已编辑 / Edited",
+        "deleted": "已删除 / Deleted",
+    }.get(action, action)
+
+    commenter = comment.get("user", {}).get("login", "?")
+    body = _truncate(comment.get("body", ""))
+    number = issue.get("number", "?")
+    issue_title = issue.get("title", "?")
+    issue_url = issue.get("html_url", "")
+    comment_url = comment.get("html_url", "") or issue_url
+
+    title = f"Comment {action} · {REPO}"
+    text = f"""## {icon} {kind} · {action_label}
+
+**{issue_title}**
+
+- **评论者** / *Commenter*: **{commenter}**
+- **对象** / *Target*: [#{number}]({issue_url})"""
+
+    if body:
+        text += f"\n\n{body}"
+
+    if comment_url:
+        text += f"\n\n[📎 查看评论 / View Comment]({comment_url})"
+
+    text += "\n\n—— **GitHub**"
+    return title, text
+
+
 def release():
     """GitHub Release 事件通用模板。
     展示 release body（含完整 changelog）+ 元信息。
@@ -366,6 +409,7 @@ def main():
         "pull_request": pull_request,
         "pull_request_review": pull_request_review,
         "issues": issues,
+        "issue_comment": issue_comment,
         "release": release,
         "workflow_run": workflow_run,
     }
